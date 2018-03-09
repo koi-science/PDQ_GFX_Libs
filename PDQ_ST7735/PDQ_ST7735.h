@@ -59,11 +59,13 @@ as well as Adafruit raw 1.8" TFT display
 #error Oops!  You need to #include "PDQ_ST7735_config.h" (modified with your pin configuration and options) from your sketch before #include "PDQ_ST7735.h".
 #endif
 
+/*
 #include <PDQ_FastPin.h>
 
 #if !defined(AVR_HARDWARE_SPI)
 #error Oops!  Currently hardware SPI is required.  Bother Xark if you would like USI or bit-bang SPI supported.
 #endif
+*/
 
 #define INLINE		inline
 #define INLINE_OPT	__attribute__((always_inline))
@@ -77,7 +79,7 @@ enum
 	ST7735_GREEN	= 0x07E0,
 	ST7735_CYAN	= 0x07FF,
 	ST7735_MAGENTA	= 0xF81F,
-	ST7735_YELLOW	= 0xFFE0,	
+	ST7735_YELLOW	= 0xFFE0,
 	ST7735_WHITE	= 0xFFFF,
 };
 
@@ -194,19 +196,22 @@ class PDQ_ST7735 : public PDQ_GFX<PDQ_ST7735>
 #if ST7735_SAVE_SPCR
 		swapValue(save_SPCR, SPCR);	// swap initial/current SPCR settings
 #endif
-		FastPin<ST7735_CS_PIN>::lo();		// CS <= LOW (selected)
+        digitalWrite(ST7735_CS_PIN, LOW);
+//		FastPin<ST7735_CS_PIN>::lo();		// CS <= LOW (selected)
 	}
 
 	// NOTE: Make sure each spi_begin() is matched with a single spi_end() (and don't call either twice)
 	// reset CS back to high (LCD unselected)
 	static inline void spi_end() __attribute__((always_inline))
 	{
-		FastPin<ST7735_CS_PIN>::hi();		// CS <= HIGH (deselected)
+        digitalWrite(ST7735_CS_PIN, HIGH);
+//		FastPin<ST7735_CS_PIN>::hi();		// CS <= HIGH (deselected)
 #if ST7735_SAVE_SPCR
 		swapValue(SPCR, save_SPCR);	// swap current/initial SPCR settings
 #endif
 	}
 
+/*
 	// 10 cycle delay (including "call")
 	static void delay10() __attribute__((noinline)) __attribute__((naked)) __attribute__((used))
 	{
@@ -277,21 +282,27 @@ class PDQ_ST7735 : public PDQ_GFX<PDQ_ST7735>
 			: : : 
 		);
 	}
-	
+*/	
 	// normal SPI write with minimal hand-tuned delay (assuming max DIV2 SPI rate)
 	static INLINE void spiWrite(uint8_t data) INLINE_OPT
 	{
-		SPDR = data;
+        SPI.transfer(data);
+/*		SPDR = data;
 		__asm__ __volatile__
 		(
 			"	call	_ZN10PDQ_ST77357delay17Ev\n"	// call mangled delay17 (compiler would needlessly save/restore regs)
 			: : : 
-		);
+		);*/
 	}
 
+#define spiWrite_preCmd spiWrite
+
+#if 0
 	// special SPI write with minimal hand-tuned delay (assuming max DIV2 SPI rate) - minus 2 cycles for RS (etc.) change
 	static INLINE void spiWrite_preCmd(uint8_t data) INLINE_OPT
 	{
+        SPI.transfer(data);
+    /*
 		SPDR = data;
 
 		__asm__ __volatile__
@@ -299,12 +310,14 @@ class PDQ_ST7735 : public PDQ_GFX<PDQ_ST7735>
 			"	call	_ZN10PDQ_ST77357delay15Ev\n"	// call mangled delay15 (compiler would needlessly save/restore regs)
 			: : : 
 		);
+*/
 	}
-
+#endif
 	// SPI 16-bit write with minimal hand-tuned delay (assuming max DIV2 SPI rate)
 	static INLINE void spiWrite16(uint16_t data) INLINE_OPT
 	{
-		uint8_t temp;
+        SPI.transfer(data);
+/*		uint8_t temp;
 		__asm__ __volatile__
 		(
 			"	out	%[spi],%[hi]\n"				// write SPI data (18 cycles until next write)
@@ -316,11 +329,19 @@ class PDQ_ST7735 : public PDQ_GFX<PDQ_ST7735>
 			: [spi] "i" (_SFR_IO_ADDR(SPDR)), [lo] "r" ((uint8_t)data), [hi] "r" ((uint8_t)(data>>8))
 			: 
 		);
+*/
 	}
 
+#define spiWrite16_preCmd spiWrite16
+#define spiWrite16_lineDraw spiWrite16
+
+#if 0
 	// SPI 16-bit write with minimal hand-tuned delay (assuming max DIV2 SPI rate) minus 2 cycles
 	static INLINE void spiWrite16_preCmd(uint16_t data) INLINE_OPT
 	{
+        SPI.transfer((uint8_t)(data>>8));
+        SPI.transfer((uint8_t)data);
+/*
 		uint8_t temp;
 		__asm__ __volatile__
 		(
@@ -333,11 +354,14 @@ class PDQ_ST7735 : public PDQ_GFX<PDQ_ST7735>
 			: [spi] "i" (_SFR_IO_ADDR(SPDR)), [lo] "r" ((uint8_t)data), [hi] "r" ((uint8_t)(data>>8))
 			: 
 		);
+*/
 	}
-
 	// SPI 16-bit write with minimal hand-tuned delay (assuming max DIV2 SPI rate) for drawLine
 	static INLINE void spiWrite16_lineDraw(uint16_t data) INLINE_OPT
 	{
+        SPI.transfer((uint8_t)(data>>8));
+        SPI.transfer((uint8_t)data);
+        /*
 		uint8_t temp;
 		__asm__ __volatile__
 		(
@@ -348,12 +372,18 @@ class PDQ_ST7735 : public PDQ_GFX<PDQ_ST7735>
 			: [temp] "=d" (temp)
 			: [spi] "i" (_SFR_IO_ADDR(SPDR)), [lo] "r" ((uint8_t)data), [hi] "r" ((uint8_t)(data>>8))
 			: 
-		);
+		);*/
 	}
 
+#endif
 	// normal SPI write with minimal hand-tuned delay (assuming max DIV2 SPI rate)
 	static INLINE void spiWrite16(uint16_t data, int count) INLINE_OPT
 	{
+        do {
+            SPI.transfer(data);
+            count -= 1;
+        }  while(count > 0);
+/*
 		uint8_t temp;
 		__asm__ __volatile__
 		(
@@ -373,20 +403,23 @@ class PDQ_ST7735 : public PDQ_GFX<PDQ_ST7735>
 			: [spi] "i" (_SFR_IO_ADDR(SPDR)), [lo] "r" ((uint8_t)data), [hi] "r" ((uint8_t)(data>>8))
 			: 
 		);
+*/
 	}
 	// write SPI byte with RS (aka D/C) pin set low to indicate a command byte (and then reset back to high when done)
 	static INLINE void writeCommand(uint8_t data) INLINE_OPT
 	{
-		FastPin<ST7735_DC_PIN>::lo();			// RS <= LOW indicate command byte
+        digitalWrite(ST7735_DC_PIN, LOW);
+//		FastPin<ST7735_DC_PIN>::lo();			// RS <= LOW indicate command byte
 		spiWrite_preCmd(data);
-		FastPin<ST7735_DC_PIN>::hi();			// RS <= HIGH indicate data byte (always assumed left in data mode)
+        digitalWrite(ST7735_DC_PIN, HIGH);
+//		FastPin<ST7735_DC_PIN>::hi();			// RS <= HIGH indicate data byte (always assumed left in data mode)
 	}
 
 	// write SPI byte with RS assumed low indicating a data byte
 	static inline void writeData(uint8_t data) __attribute__((always_inline))
 	{
 		spiWrite(data);
-	} 
+	}
 
 	// internal version that does not spi_begin()/spi_end()
 	static INLINE void setAddrWindow_(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) INLINE_OPT
@@ -493,20 +526,27 @@ void PDQ_ST7735::commandList(const uint8_t *addr)
 void PDQ_ST7735::begin()
 {
 	// set CS and RS pin directions to output
-	FastPin<ST7735_CS_PIN>::setOutput();
-	FastPin<ST7735_DC_PIN>::setOutput();
+    pinMode(ST7735_CS_PIN, OUTPUT);
+    pinMode(ST7735_DC_PIN, OUTPUT);
+//	FastPin<ST7735_CS_PIN>::setOutput();
+//	FastPin<ST7735_DC_PIN>::setOutput();
 
-	FastPin<ST7735_CS_PIN>::hi();		// CS <= HIGH (so no spurious data)
-	FastPin<ST7735_DC_PIN>::hi();		// RS <= HIGH (default data byte)
+    digitalWrite(ST7735_CS_PIN, HIGH);
+    digitalWrite(ST7735_DC_PIN, HIGH);
+
+//	FastPin<ST7735_CS_PIN>::hi();		// CS <= HIGH (so no spurious data)
+//	FastPin<ST7735_DC_PIN>::hi();		// RS <= HIGH (default data byte)
 
 #if ST7735_SAVE_SPCR
 	uint8_t oldSPCR = SPCR;	// save current SPCR settings
-#endif	
+#endif
 	SPI.begin();
+    SPI.beginTransaction(SPISettings(16000000, MSBFIRST, SPI_MODE0));
+/*
 	SPI.setBitOrder(MSBFIRST);
 	SPI.setDataMode(SPI_MODE0);
 	SPI.setClockDivider(SPI_CLOCK_DIV2);	// 8 MHz (full! speed!) [1 byte every 18 cycles]
-	
+*/
 #if ST7735_SAVE_SPCR
 	save_SPCR = SPCR;	// save new initial SPCR settings
 	SPCR = oldSPCR;		// restore previous SPCR settings (spi_begin/spi_end will switch between the two)
@@ -664,7 +704,6 @@ void PDQ_ST7735::begin()
 			};
 			commandList(Rcmd2red);
 		}
-
 		static const uint8_t PROGMEM Rcmd3[] =	// ==== Init for 7735R, part 3 (red or green tab)
 		{
 		    4,                        //  4 commands in list:
@@ -917,6 +956,7 @@ void PDQ_ST7735::drawLine(int x0, int y0, int x1, int y1, uint16_t color)
 				err += dx;
 				setaddr = 1;
 			}
+                /*
 			else
 			{
 				__asm__ __volatile__
@@ -925,6 +965,7 @@ void PDQ_ST7735::drawLine(int x0, int y0, int x1, int y1, uint16_t color)
 					: : :
 				);
 			}
+                */
 		}
 	}
 	else	// x increments every iteration (x0 is x-axis, and y0 is y-axis)
@@ -967,6 +1008,7 @@ void PDQ_ST7735::drawLine(int x0, int y0, int x1, int y1, uint16_t color)
 				err += dx;
 				setaddr = 1;
 			}
+                /*
 			else
 			{
 				__asm__ __volatile__
@@ -975,9 +1017,10 @@ void PDQ_ST7735::drawLine(int x0, int y0, int x1, int y1, uint16_t color)
 					: : :
 				);
 			}
+                */
 		}
 	}
-	
+
 	spi_end();
 }
 

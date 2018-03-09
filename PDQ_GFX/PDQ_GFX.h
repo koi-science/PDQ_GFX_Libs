@@ -78,7 +78,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define GFX_FONT_PACKED
 
-typedef int			coord_t;	// type used for coordinates (signed) for parameters (int16_t used for storage)
+typedef int16_t			coord_t;	// type used for coordinates (signed) for parameters (int16_t used for storage)
 typedef uint16_t	color_t;	// type used for colors (unsigned)
 
 // swap any type
