@@ -316,7 +316,9 @@ class PDQ_ST7735 : public PDQ_GFX<PDQ_ST7735>
 	// SPI 16-bit write with minimal hand-tuned delay (assuming max DIV2 SPI rate)
 	static INLINE void spiWrite16(uint16_t data) INLINE_OPT
 	{
-        SPI.transfer(data);
+        SPI.transfer((uint8_t)(data>>8));
+        SPI.transfer((uint8_t)data);
+
 /*		uint8_t temp;
 		__asm__ __volatile__
 		(
@@ -380,7 +382,10 @@ class PDQ_ST7735 : public PDQ_GFX<PDQ_ST7735>
 	static INLINE void spiWrite16(uint16_t data, int count) INLINE_OPT
 	{
         do {
-            SPI.transfer(data);
+           SPI.transfer((uint8_t)(data>>8));
+           SPI.transfer((uint8_t)data);
+
+//            SPI.transfer(data);
             count -= 1;
         }  while(count > 0);
 /*
@@ -541,7 +546,7 @@ void PDQ_ST7735::begin()
 	uint8_t oldSPCR = SPCR;	// save current SPCR settings
 #endif
 	SPI.begin();
-    SPI.beginTransaction(SPISettings(16000000, MSBFIRST, SPI_MODE0));
+    SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
 /*
 	SPI.setBitOrder(MSBFIRST);
 	SPI.setDataMode(SPI_MODE0);
